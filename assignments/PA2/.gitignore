@@ -1,0 +1,2 @@
+# output c file from flex
+lex.yy.c 

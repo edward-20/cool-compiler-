@@ -2,28 +2,28 @@
 ASSN = 2
 CLASS= cs143
 CLASSDIR= ../..
-LIB= -lfl
+LIB= # link the flex library
 
-SRC= cool.flex test.cl README 
-CSRC= lextest.cc utilities.cc stringtab.cc handle_flags.cc
-TSRC= mycoolc
+SRC= cool.flex test.cl README # key source files (seed of all the other files in the directory) is lex file, example cool file used as test and the README with instructions
+CSRC= lextest.cc utilities.cc stringtab.cc handle_flags.cc # c source
+TSRC= mycoolc # a shell script that pipes each stage of the compiler into the next
 HSRC= 
-CGEN= cool-lex.cc
+CGEN= cool-lex.cc # generated c file from flex (lexer program)
 HGEN=
-LIBS= parser semant cgen
-CFIL= ${CSRC} ${CGEN}
+LIBS= parser semant cgen # each of the executables for each stage of the compilation
+CFIL= ${CSRC} ${CGEN} # cfiles are csource files and the generated c file
 LSRC= Makefile
-OBJS= ${CFIL:.cc=.o}
-OUTPUT= test.output
+OBJS= ${CFIL:.cc=.o} # object files
+OUTPUT= test.output # output of running lexer on the test example cool file
 
-CPPINCLUDE= -I. -I${CLASSDIR}/include/PA${ASSN} -I${CLASSDIR}/src/PA${ASSN}
+CPPINCLUDE= -I. -I${CLASSDIR}/include/PA${ASSN} -I${CLASSDIR}/src/PA${ASSN} # include the assignment
 
 
-FFLAGS= -d -ocool-lex.cc
+FFLAGS= -d -o cool-lex.cc # Flags for flex
 
 CC=g++
-CFLAGS= -g -Wall -Wno-unused -Wno-write-strings ${CPPINCLUDE}
-FLEX=flex ${FFLAGS}
+CFLAGS= -g -Wall -Wno-unused -Wno-write-strings  -Wno-nonnull-compare ${CPPINCLUDE}
+FLEX=flex ${FFLAGS} # command that produces output for lexer
 DEPEND = ${CC} -MM ${CPPINCLUDE}
 
 
@@ -38,7 +38,7 @@ ${OUTPUT}:	lexer test.cl
 lexer: ${OBJS}
 	${CC} ${CFLAGS} ${OBJS} ${LIB} -o lexer
 
-.cc.o:
+.cc.o: # https://www.gnu.org/software/make/manual/make.html#Suffix-Rules
 	${CC} ${CFLAGS} -c $<
 
 cool-lex.cc: cool.flex 

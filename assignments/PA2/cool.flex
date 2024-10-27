@@ -157,8 +157,8 @@ false {return BOOL_CONST;}
   BEGIN(string);
 }
 
-<string>[^\\]\"   {
-  char *new_string = (char *)malloc(strlen(yytext) + 1);
+<string>.*[^\\]\"   {
+  char *new_string = (char *)malloc((strlen(yytext) + 1) * sizeof(char));
   char *i = yytext;
   
   char *j = new_string;

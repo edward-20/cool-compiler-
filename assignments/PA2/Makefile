@@ -36,11 +36,9 @@ ${OUTPUT}:	lexer test.cl
 	-./lexer test.cl >test.output 2>&1 
 
 lexer: ${OBJS}
-	echo now producing lexer
 	${CC} ${CFLAGS} ${OBJS} ${LIB} -o lexer
 
 .cc.o: # https://www.gnu.org/software/make/manual/make.html#Suffix-Rules
-	echo turning c files into object files
 	${CC} ${CFLAGS} -c $<
 
 cool-lex.cc: cool.flex 

@@ -157,7 +157,8 @@ false {return BOOL_CONST;}
   BEGIN(string);
 }
 
-<string>.*[^\\]\"   {
+  /* requires terminating quotation */
+<string>.*([^\\]\"|\n) {
   char *new_string = (char *)malloc((strlen(yytext) + 1) * sizeof(char));
   char *i = yytext;
   

@@ -45,37 +45,199 @@ extern YYSTYPE cool_yylval;
 
 %}
 
+
+
+
+
+
+
+
+
+
+
+
 /*
- * Define names for regular expressions here.
+ * Define names for regular expressions here. And also start conditions
  */
+
+%x multi_line_comment one_line_comment string
+
+MULTI_LINE_COMMENT_START "(*"
+MULTI_LINE_COMMENT_END "*)"
+
+SINGLE_LINE_COMMENT_START "--"
+
+STRING_START "\""
 
 DARROW          =>
 
 %option noyywrap
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 %%
 
- /*
-  *  Nested comments
-  */
+  /* comments */
+{MULTI_LINE_COMMENT_START} {BEGIN(multi_line_comment);}
+<multi_line_comment>{MULTI_LINE_COMMENT_END} {BEGIN(INITIAL);}
+<multi_line_comment>[^\*]* {}
+  /* EOF in comment */
+<multi_line_comment><<EOF>> {
+  cool_yylval.error_msg = "EOF in comment";
+  return ERROR;
+}
+
+{SINGLE_LINE_COMMENT_START} {BEGIN(one_line_comment);}
+<one_line_comment>[\n] {BEGIN(INITIAL);}
+<one_line_comment>.* {}
+
+  /* unmatched *) */
+\*\) {
+  cool_yylval.error_msg = "Unmatched *)";
+  return ERROR;
+}
+
+  /* integers */
+[0-9]+ {
+  cool_yylval.symbol = inttable.add_string(yytext);
+  return INT_CONST;
+}
+
+  /* keywords */
+(?i:class) {return CLASS;}
+(?i:else) {return ELSE;}
+(?i:fi) {return FI;}
+(?i:if) {return IF;}
+(?i:in) {return IN;}
+(?i:inherits) {return INHERITS;}
+(?i:let) {return LET;}
+(?i:loop) {return LOOP;}
+(?i:pool) {return POOL;}
+(?i:then) {return THEN;}
+(?i:while) {return WHILE;}
+(?i:case) {return CASE;}
+(?i:esac) {return ESAC;}
+(?i:new) {return NEW;}
+(?i:of) {return OF;}
+(?i:not) {return NOT;}
+
+  /* key characters */
+true {return BOOL_CONST;}
+false {return BOOL_CONST;}
 
 
- /*
-  *  The multiple-character operators.
-  */
+  /* Type identifiers */
+[A-Z][^ \t\n]* {
+  cool_yylval.symbol = idtable.add_string(yytext);
+  return TYPEID;
+}
+
+  /* object identifiers */
+[a-z][^ \t\n]* {
+  cool_yylval.symbol = idtable.add_string(yytext);
+  return OBJECTID;
+}
+
+  /* strings */
+\" {
+  BEGIN(string);
+}
+
+<string>[^\\]\"   {
+  char *new_string = (char *)malloc(strlen(yytext) + 1);
+  char *i = yytext;
+  
+  char *j = new_string;
+  int len = 0;
+
+  int error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 0;
+  
+  while (*i != '\0') {
+    if (error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string == 1) {
+      if (*i == '\n' || *i == '"') {
+        BEGIN(INITIAL);
+        return ERROR;
+      }
+      i++;
+      continue;
+    }
+
+    if (*i == '"') {
+      break;
+    }
+    
+    if (len > 1024) {
+      cool_yylval.error_msg = "String constant too long";
+      error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 1;
+      i++;
+      continue;
+    }
+
+    if (*i == '\n') {
+      if (error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string != 1) {
+        cool_yylval.error_msg = "Unterminated string constant";
+      }
+      BEGIN(INITIAL);
+      return ERROR;
+    }
+    
+    if (*i == '\\') {
+      i++;
+      switch (*i) {
+        case 'b':
+          *j = '\b';
+          break;
+        case 't':
+          *j = '\t';
+          break;
+        case 'n':
+          *j = '\n';
+          break;
+        case 'f':
+          *j = '\f';
+          break;
+        case '0':
+          cool_yylval.error_msg = "String contains null character";
+          error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 1;
+          i++;
+          continue;
+      }
+    } else {
+      *j = *i;
+    }
+    i++;
+    j++;
+    len++;
+  }
+  *j = '\0';
+  cool_yylval.symbol = stringtable.add_string(new_string);
+  BEGIN(INITIAL);
+  return STR_CONST;
+}
 {DARROW}		{ return (DARROW); }
 
- /*
-  * Keywords are case-insensitive except for the values true and false,
-  * which must begin with a lower-case letter.
-  */
 
-
- /*
-  *  String constants (C syntax)
-  *  Escape sequence \c is accepted for all characters c. Except for 
-  *  \n \t \b \f, the result is c.
-  *
-  */
 
 
 %%
+
+
+
+
+
+
+

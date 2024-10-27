@@ -4,7 +4,7 @@ CLASS= cs143
 CLASSDIR= ../..
 LIB= # link the flex library
 
-SRC= cool.flex test.cl README # key source files (seed of all the other files in the directory) is lex file, example cool file used as test and the README with instructions
+SRC= cool.flex test.cl README personal.cl # key source files (seed of all the other files in the directory) is lex file, example cool file used as test and the README with instructions
 CSRC= lextest.cc utilities.cc stringtab.cc handle_flags.cc # c source
 TSRC= mycoolc # a shell script that pipes each stage of the compiler into the next
 HSRC= 
@@ -36,9 +36,11 @@ ${OUTPUT}:	lexer test.cl
 	-./lexer test.cl >test.output 2>&1 
 
 lexer: ${OBJS}
+	echo now producing lexer
 	${CC} ${CFLAGS} ${OBJS} ${LIB} -o lexer
 
 .cc.o: # https://www.gnu.org/software/make/manual/make.html#Suffix-Rules
+	echo turning c files into object files
 	${CC} ${CFLAGS} -c $<
 
 cool-lex.cc: cool.flex 
@@ -46,6 +48,9 @@ cool-lex.cc: cool.flex
 
 dotest:	lexer test.cl
 	./lexer test.cl
+
+dopractice: lexer personal.cl
+	./lexer personal.cl
 
 ${LIBS}:
 	${CLASSDIR}/etc/link-object ${ASSN} $@

@@ -163,7 +163,7 @@ false {return BOOL_CONST;}
   char *i = yytext;
   
   char *j = new_string;
-  int len = 0;
+  int len = 1;
 
   int error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 0;
   
@@ -226,6 +226,7 @@ false {return BOOL_CONST;}
   }
   *j = '\0';
   cool_yylval.symbol = stringtable.add_string(new_string);
+  cool_yylval.symbol->print(cout);
   BEGIN(INITIAL);
   return STR_CONST;
 }

@@ -90,11 +90,13 @@ DARROW          =>
 
 
 %%
-
+[\t ]* {};
+\n {curr_lineno++;}
+  
   /* comments */
 {MULTI_LINE_COMMENT_START} {BEGIN(multi_line_comment);}
 <multi_line_comment>{MULTI_LINE_COMMENT_END} {BEGIN(INITIAL);}
-<multi_line_comment>[^\*]* {}
+<multi_line_comment>[^\*\n]*\n {curr_lineno++;}
   /* EOF in comment */
 <multi_line_comment><<EOF>> {
   cool_yylval.error_msg = "EOF in comment";
@@ -102,7 +104,7 @@ DARROW          =>
 }
 
 {SINGLE_LINE_COMMENT_START} {BEGIN(one_line_comment);}
-<one_line_comment>[\n] {BEGIN(INITIAL);}
+<one_line_comment>[\n] {BEGIN(INITIAL); curr_lineno++;}
 <one_line_comment>.* {}
 
   /* unmatched *) */
@@ -170,6 +172,9 @@ false {return BOOL_CONST;}
   while (*i != '\0') {
     if (error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string == 1) {
       if (*i == '\n' || *i == '"') {
+        if (*i == '\n') {
+          curr_lineno++;
+        }
         BEGIN(INITIAL);
         return ERROR;
       }
@@ -189,6 +194,7 @@ false {return BOOL_CONST;}
     }
 
     if (*i == '\n') {
+      curr_lineno++;
       if (error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string != 1) {
         cool_yylval.error_msg = "Unterminated string constant";
       }
@@ -226,7 +232,6 @@ false {return BOOL_CONST;}
   }
   *j = '\0';
   cool_yylval.symbol = stringtable.add_string(new_string);
-  cool_yylval.symbol->print(cout);
   BEGIN(INITIAL);
   return STR_CONST;
 }

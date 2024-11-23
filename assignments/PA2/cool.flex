@@ -104,8 +104,8 @@ DARROW          =>
 }
 
 {SINGLE_LINE_COMMENT_START} {BEGIN(one_line_comment);}
-<one_line_comment>[\n] {BEGIN(INITIAL); curr_lineno++;}
-<one_line_comment>.* {}
+<one_line_comment>\n {curr_lineno++; BEGIN(INITIAL);}
+<one_line_comment>[^\n]* {}
 
   /* unmatched *) */
 \*\) {
@@ -160,7 +160,8 @@ false {return BOOL_CONST;}
 }
 
   /* requires terminating quotation */
-<string>.*([^\\]\"|\n) {
+  /* all characters inside string up to unescaped ending double quotation or unescaped newline */
+<string>.*([^\\]\"|[^\\]\n) {
   char *new_string = (char *)malloc((strlen(yytext) + 1) * sizeof(char));
   char *i = yytext;
   

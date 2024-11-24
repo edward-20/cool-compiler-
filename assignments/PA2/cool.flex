@@ -33,6 +33,8 @@ extern FILE *fin; /* we read from this file */
 
 char string_buf[MAX_STR_CONST]; /* to assemble string constants */
 char *string_buf_ptr;
+int len;
+int string_error_encountered = 0;
 
 extern int curr_lineno;
 extern int verbose_flag;
@@ -96,7 +98,8 @@ DARROW          =>
   /* comments */
 {MULTI_LINE_COMMENT_START} {BEGIN(multi_line_comment);}
 <multi_line_comment>{MULTI_LINE_COMMENT_END} {BEGIN(INITIAL);}
-<multi_line_comment>[^\*\n]*\n {curr_lineno++;}
+<multi_line_comment>. {}
+<multi_line_comment>\n {curr_lineno++;}
   /* EOF in comment */
 <multi_line_comment><<EOF>> {
   cool_yylval.error_msg = "EOF in comment";
@@ -138,8 +141,8 @@ DARROW          =>
 (?i:not) {return NOT;}
 
   /* key characters */
-true {return BOOL_CONST;}
-false {return BOOL_CONST;}
+true {cool_yylval.boolean = 1; return BOOL_CONST;}
+false {cool_yylval.boolean = 0; return BOOL_CONST;}
 
 
   /* Type identifiers */
@@ -157,85 +160,78 @@ false {return BOOL_CONST;}
   /* strings */
 \" {
   BEGIN(string);
+  // clear the initialisation of string capturing variables
+  char string_buf[MAX_STR_CONST] = "\0";
+  char *string_buf_ptr = string_buf;
+  len = 0;
+  string_error_encountered = 0;
 }
 
-  /* requires terminating quotation */
-  /* all characters inside string up to unescaped ending double quotation or unescaped newline */
-<string>.*([^\\]\"|[^\\]\n) {
-  char *new_string = (char *)malloc((strlen(yytext) + 1) * sizeof(char));
-  char *i = yytext;
-  
-  char *j = new_string;
-  int len = 1;
-
-  int error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 0;
-  
-  while (*i != '\0') {
-    if (error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string == 1) {
-      if (*i == '\n' || *i == '"') {
-        if (*i == '\n') {
-          curr_lineno++;
-        }
-        BEGIN(INITIAL);
-        return ERROR;
-      }
-      i++;
-      continue;
+  /* escaped character; so two characters */
+<string>\\. {
+  // if an error has already been encountered
+  if (string_error_encountered) {
+    // do nothing because the end of the string will not happen at an escaped character
+  } 
+  else if (len == 1024) {
+    cool_yylval.error_msg = "String constant too long";
+    string_error_encountered = 1; // resume lexing at end of string
+  } 
+  else {
+    switch (yytext[1]) {
+      case 'b': 
+        *string_buf_ptr = '\b';
+        break;
+      case 't': 
+        *string_buf_ptr = '\t';
+        break;
+      case 'n': 
+        *string_buf_ptr = '\n';
+        break;
+      case 'f': 
+        *string_buf_ptr = '\f';
+        break;
+      case '0':
+        *string_buf_ptr = '\0';
+        break;
+      default:
+        *string_buf_ptr = yytext[1];
     }
-
-    if (*i == '"') {
-      break;
-    }
-    
-    if (len > 1024) {
-      cool_yylval.error_msg = "String constant too long";
-      error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 1;
-      i++;
-      continue;
-    }
-
-    if (*i == '\n') {
-      curr_lineno++;
-      if (error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string != 1) {
-        cool_yylval.error_msg = "Unterminated string constant";
-      }
-      BEGIN(INITIAL);
-      return ERROR;
-    }
-    
-    if (*i == '\\') {
-      i++;
-      switch (*i) {
-        case 'b':
-          *j = '\b';
-          break;
-        case 't':
-          *j = '\t';
-          break;
-        case 'n':
-          *j = '\n';
-          break;
-        case 'f':
-          *j = '\f';
-          break;
-        case '0':
-          cool_yylval.error_msg = "String contains null character";
-          error_found_thats_not_unescaped_newline_just_proceed_to_end_of_string = 1;
-          i++;
-          continue;
-      }
-    } else {
-      *j = *i;
-    }
-    i++;
-    j++;
+    string_buf_ptr++;
     len++;
   }
-  *j = '\0';
-  cool_yylval.symbol = stringtable.add_string(new_string);
-  BEGIN(INITIAL);
-  return STR_CONST;
 }
+
+  /* unescaped character */
+<string>. {
+  // error before and now we're ending the string 
+  if (string_error_encountered && (yytext[0] == '\n' || yytext[0] == '"')) {
+    return ERROR;
+  }
+
+  if (len == 1024) {
+    cool_yylval.error_msg = "String constant too long";
+    string_error_encountered = 1;
+    // resume lexing after the end of the string
+  } else {
+    switch (yytext[0]) {
+      case '\n':
+        cool_yylval.error_msg = "Unterminated string constant";
+        return ERROR;
+      case '"':
+        // handle ending of string
+        cool_yylval.symbol = stringtable.add_string(string_buf);
+        BEGIN(INITIAL);
+        return STR_CONST;
+      default:
+        *string_buf_ptr = yytext[0];
+    }
+    string_buf_ptr++;
+    len++;
+  }
+}
+
+
 {DARROW}		{ return (DARROW); }
 
 

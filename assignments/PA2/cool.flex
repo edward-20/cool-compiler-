@@ -252,6 +252,18 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
 
 {DARROW}		{ return (DARROW); }
 
+\{  {return '{';}
+\}  {return '}';}
+\:  {return ':';}
+\;  {return ';';}
+\<-  {return ASSIGN;}
+\( {return '(';}
+\) {return ')';}
+\. {return '.';}
+, {return ',';}
+= {return '=';}
++ {return '+';}
+- {return '-';}
 
 
 

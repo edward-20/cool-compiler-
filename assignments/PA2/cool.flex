@@ -165,7 +165,6 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
   string_buf_ptr = string_buf;
   len = 0;
   string_error_encountered = 0;
-  printf("starting the string\n");
 }
 
   /* escaped character; so two characters */
@@ -216,9 +215,6 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
     // resume lexing after the end of the string
   } else {
     switch (yytext[0]) {
-      case '\n':
-        cool_yylval.error_msg = "Unterminated string constant";
-        return ERROR;
       case '"':
         // handle ending of string
         cool_yylval.symbol = stringtable.add_string(string_buf);
@@ -232,6 +228,12 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
   }
 }
 
+<string>\n {
+  cool_yylval.error_msg = "Unterminated string constant";
+  curr_lineno++;
+  BEGIN(INITIAL);
+  return ERROR;
+}
 
 {DARROW}		{ return (DARROW); }
 

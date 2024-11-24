@@ -202,14 +202,25 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
   }
 }
 
+  /* escaped newline */
+<string>\\\n {
+  // TODO: handle the case in which we've had an error
+  if (string_error_encountered) {
+    {BEGIN(INITIAL);return ERROR;}
+  }
+  *string_buf_ptr = yytext[1];
+  string_buf_ptr++;
+  len++;
+  curr_lineno++;
+}
+
   /* unescaped character */
 <string>. {
   // error before and now we're ending the string 
-  if (string_error_encountered && (yytext[0] == '\n' || yytext[0] == '"')) {
-    return ERROR;
+  if (string_error_encountered) {
+    if (yytext[0] == '\n' || yytext[0] == '"') {BEGIN(INITIAL);return ERROR;}
   }
-
-  if (len == 1024) {
+  else if (len == 1024) {
     cool_yylval.error_msg = "String constant too long";
     string_error_encountered = 1;
     // resume lexing after the end of the string
@@ -217,6 +228,7 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
     switch (yytext[0]) {
       case '"':
         // handle ending of string
+        *string_buf_ptr = '\0';
         cool_yylval.symbol = stringtable.add_string(string_buf);
         BEGIN(INITIAL);
         return STR_CONST;
@@ -228,8 +240,11 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
   }
 }
 
+  /* unescaped newline */
 <string>\n {
-  cool_yylval.error_msg = "Unterminated string constant";
+  if (string_error_encountered == 0) {
+    cool_yylval.error_msg = "Unterminated string constant";
+  }
   curr_lineno++;
   BEGIN(INITIAL);
   return ERROR;

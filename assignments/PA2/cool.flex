@@ -161,10 +161,11 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
 \" {
   BEGIN(string);
   // clear the initialisation of string capturing variables
-  char string_buf[MAX_STR_CONST] = "\0";
-  char *string_buf_ptr = string_buf;
+  string_buf[0] = '\0';
+  string_buf_ptr = string_buf;
   len = 0;
   string_error_encountered = 0;
+  printf("starting the string\n");
 }
 
   /* escaped character; so two characters */

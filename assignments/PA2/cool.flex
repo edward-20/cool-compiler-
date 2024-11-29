@@ -167,7 +167,7 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
   string_error_encountered = 0;
 }
 
-  /* escaped character; so two characters */
+  /* escaped character; not escaped newline */
 <string>\\. {
   // if an error has already been encountered
   if (string_error_encountered) {
@@ -204,27 +204,40 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
 
   /* escaped newline */
 <string>\\\n {
-  // TODO: handle the case in which we've had an error
-  if (string_error_encountered) {
-    {BEGIN(INITIAL);return ERROR;}
+  if (string_error_encountered == 0) {
+    *string_buf_ptr = yytext[1];
+    string_buf_ptr++;
+    len++;
+  } 
+  curr_lineno++; // keep track of the end of the error string regardless
+}
+
+  /* invalid null character */
+<string>\0 {
+  if (string_error_encountered == 0) {
+    cool_yylval.error_msg = "String contains null character";
+    string_error_encountered = 1;
   }
-  *string_buf_ptr = yytext[1];
-  string_buf_ptr++;
-  len++;
-  curr_lineno++;
+  // resume lexing at end of string
+}
+
+  /* EOF in string */
+<string><<EOF>> {
+  if (string_error_encountered == 0) {
+    cool_yylval.error_msg = "String contains EOF character";
+  }
+  BEGIN(INITIAL);
+  return ERROR; 
 }
 
   /* unescaped character */
 <string>. {
-  // error before and now we're ending the string 
-  if (string_error_encountered) {
-    if (yytext[0] == '\n' || yytext[0] == '"') {BEGIN(INITIAL);return ERROR;}
+  // error before and now we're prepared to end the string if this is the right character
+  if (string_error_encountered && yytext[0] == '"') {
+    BEGIN(INITIAL);
+    return ERROR;
   }
-  else if (len == 1024) {
-    cool_yylval.error_msg = "String constant too long";
-    string_error_encountered = 1;
-    // resume lexing after the end of the string
-  } else {
+  else {
     switch (yytext[0]) {
       case '"':
         // handle ending of string
@@ -233,10 +246,16 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
         BEGIN(INITIAL);
         return STR_CONST;
       default:
-        *string_buf_ptr = yytext[0];
+        if (len == 1024) {
+          cool_yylval.error_msg = "String constant too long"; 
+          string_error_encountered = 1;
+          // resume lexing after the end of the string
+        } else {
+          *string_buf_ptr = yytext[0];
+          string_buf_ptr++;
+          len++;
+        }
     }
-    string_buf_ptr++;
-    len++;
   }
 }
 
@@ -262,7 +281,7 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
 \. {return '.';}
 , {return ',';}
 = {return '=';}
-+ {return '+';}
+\+ {return '+';}
 - {return '-';}
 
 

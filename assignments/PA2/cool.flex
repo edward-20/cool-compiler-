@@ -103,8 +103,6 @@ TYPE_IDENTIFIER [A-Z]([:alnum]|_)*
 TYPE_IDENTIFIER [A-Z]([:alnum]|_)*
 OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 
-DARROW          =>
-
 %option noyywrap
 
 

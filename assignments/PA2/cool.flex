@@ -209,7 +209,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   BEGIN(feature_id_colon);
   return ':';
 }
-<feature_id>\{ {
+<feature_id>\( {
   BEGIN(feature_id_openingparen);
   return '(';
 }

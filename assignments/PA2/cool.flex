@@ -45,6 +45,17 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
+#define RETURN_ERROR(A) \
+  cool_yylval.error_msg = yytext + A; \
+  return ERROR; 
+
+#define LOOKUP_AND_ADD_SYMBOL \
+  if (elem = idtable.lookup_string(yytext) != NULL) {\
+    cool_yylval.symbol = elem;\
+  } else {\
+    cool_yylval.symbol = idtable.add_string(yytext);\ 
+  }
+
 %}
 
 
@@ -65,10 +76,11 @@ extern YYSTYPE cool_yylval;
 %x multi_line_comment one_line_comment 
 %x string
 %x class
-%x type_declared
-%x inherits
+%x class_type
+%x class_type_inherits
 %x class_signature
-%x class_open_brace
+// this condition means we've had * features defined before in the class definition 
+%x class_feature
 
 %x feature_id
 %x feature_id_colon
@@ -136,94 +148,61 @@ DARROW          =>
   return ERROR;
 }
 
-  /* integers */
-[0-9]+ {
-  cool_yylval.symbol = inttable.add_string(yytext);
-  return INT_CONST;
-}
-
   /* class */
 (?i:class) {BEGIN(class); return CLASS;}
 
   /* class - type identifier */
 <class>[ \t]* {}
 <class>\n {curr_lineno++;}
-<class>[^A-Z] {
-  cool_yylval.error_msg = yytext; // invalid character
-  return ERROR;
-}
+<class>[^A-Z] {RETURN_ERROR(0);}
 <class>TYPE_IDENTIFIER {
   cool_yylval.symbol = idtable.add_string(yytext);
-  BEGIN(type_declared);
+  BEGIN(class_type);
   return TYPEID;
 }
-<class>[A-Z][^a-zA-Z_0-9]* {
-  cool_yylval.error_msg = yytext + 1; // invalid character (string)
-  return ERROR; 
-}
+<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 
   /* type identifier - [ inherits | { ] */
-<type_declared>[ \t]* {}
-<type_declared>\n {curr_lineno++;}
-<type_declared>inherits {
-  BEGIN(inherits);
+<class_type>[ \t]* {}
+<class_type>\n {curr_lineno++;}
+<class_type>inherits {
+  BEGIN(class_type_inherits);
   return INHERITS;  
 }
-<type_declared>\{ {
-  BEGIN(class_open_brace);
+<class_type>\{ {
+  BEGIN(class_feature);
   return '{';
 }
   
   /* inherits - type identifier */
-<inherits>[\t ]* {}
-<inherits>\n {curr_lineno++;}
-<inherits>[^A-Z] {
-  cool_yylval.error_msg = yytext; // invalid character
-  return ERROR;
-}
-<inherits>TYPE_IDENTIFIER {
-  // check if the parent class indeed exists
-  if ((elem = idtable.lookup_string(yytext)) != NULL) {
-    cool_yylval.symbol = elem;
-  } else {
-    cool_yylval.symbol = idtable.add_string(yytext); // is it the lexer's job to determine if there
-    // exists that parent class? does having multiple files prevent lexer from
-    // accurately deciding on this?
-  }
+<class_type_inherits>[\t ]* {}
+<class_type_inherits>\n {curr_lineno++;}
+<class_type_inherits>[^A-Z] {RETURN_ERROR(0);}
+<class_type_inherits>TYPE_IDENTIFIER {
+  LOOKUP_AND_ADD_SYMBOL;
   BEGIN(class_signature);
   return TYPEID;
 }
-<inherits>[A-Z][^a-zA-Z_0-9]* {
-  cool_yylval.error_msg = yytext + 1; // invalid substring
-  return ERROR; 
-}
+<class_type_inherits>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 
   /* class signature - open brace */
 <class_signature>[\t ]* {}
 <class_signature>\n {curr_lineno++;}
 <class_signature>\{ {
-  BEGIN(class_open_brace);
+  BEGIN(class_feature);
   return '{';
 }
-<class_signature>. {
-  cool_yylval.error_msg = yytext; // invalid character
-  return ERROR;
-}
+<class_signature>. {RETURN_ERROR(0);}
 
   /* class open brace - [ feature; ]* */
-<class_open_brace>[\t ]* {}
-<class_open_brace>\n {curr_lineno++;}
-<class_open_brace>[^A-Z] {
-  cool_yylval.error_msg = yytext; // invalid character
-}
-<class_open_brace>OBJECT_IDENTIFIER {
+<class_feature>[\t ]* {}
+<class_feature>\n {curr_lineno++;}
+<class_feature>[^A-Z] {RETURN_ERROR(0);}
+<class_feature>OBJECT_IDENTIFIER {
   cool_yylval.symbol = idtable.add_string(yytext);
   BEGIN(feature_id);
 }
-<class_open_brace>[a-z][^a-zA-Z_0-9]* {
-  cool_yylval.error_msg = yytext + 1; // invalid character (substring)
-  return ERROR; 
-}
+<class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 
   /* feature identifier - ( | : */
 <feature_id>[\t ]* {}
@@ -246,13 +225,7 @@ DARROW          =>
 }
 <feature_id_colon>TYPE_IDENTIFIER {
   // check if the type indeed exists
-  if ((elem = idtable.lookup_string(yytext)) != NULL) {
-    cool_yylval.symbol = elem;
-  } else {
-    cool_yylval.symbol = idtable.add_string(yytext); // is it the lexer's job to determine if there
-    // exists that type? does having multiple files prevent lexer from
-    // accurately deciding on this?
-  }
+  LOOKUP_AND_ADD_SYMBOL;
   BEGIN(feature_id_colon_type)
   return TYPEID;
 }
@@ -282,15 +255,10 @@ DARROW          =>
 <feature_id_openingparen>[\t ]* {}
 <feature_id_openingparen>\n {curr_lineno++;}
 <feature_id_openingparen>\) {
-  return EXPR;
+  return ')';
 }
 <feature_id_openingparen>OBJECT_IDENTIFIER {
-  if (elem = idtable.lookup_string(yytext) != NULL) {
-    cool_yylval.symbol = elem;
-  } else {
-    cool_yylval.symbol = idtable.add_string(yytext); // is it the lexer's job to determine if there
-    // are distinct formal parameters for a method?
-  }
+  LOOKUP_AND_ADD_SYMBOL;
   BEGIN(formal_id);
   return OBJECTID;
 }
@@ -315,12 +283,7 @@ DARROW          =>
 <formal_id_colon>[\t ]* {}
 <formal_id_colon>\n {curr_lineno++;}
 <formal_id_colon>TYPE_IDENTIFIER {
-  if (elem = idtable.lookup_string(yytext) != NULL) {
-    cool_yylval.symbol = elem;
-  } else {
-    cool_yylval.symbol = idtable.add_string(yytext); // is it the lexer's job to determine if there
-    // are distinct formal parameters for a method?
-  }
+  LOOKUP_AND_ADD_SYMBOL;
   BEGIN(formal_needing_comma);
   return TYPEID;
 }

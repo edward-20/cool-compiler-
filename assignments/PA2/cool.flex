@@ -154,7 +154,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <class>\n {curr_lineno++;}
 <class>[^A-Z] {RETURN_ERROR(0);}
 <class>TYPE_IDENTIFIER {
-  cool_yylval.symbol = idtable.add_string(yytext);
+  LOOKUP_AND_ADD_SYMBOL;
   BEGIN(class_type);
   return TYPEID;
 }
@@ -197,7 +197,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <class_feature>\n {curr_lineno++;}
 <class_feature>[^A-Z] {RETURN_ERROR(0);}
 <class_feature>OBJECT_IDENTIFIER {
-  cool_yylval.symbol = idtable.add_string(yytext);
+  LOOKUP_AND_ADD_SYMBOL;
   BEGIN(feature_id);
 }
 <class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}

@@ -80,7 +80,9 @@ extern YYSTYPE cool_yylval;
 %x feature_id
 %x feature_id_colon
 %x feature_id_colon_type
+/* if we're in this state it means we've finished the expression and are now seeking the semicolon to transition to class_feature */
 %x feature_id_colon_type_assign
+
 
 %x feature_id_openingparen
 %x formal_id
@@ -92,6 +94,8 @@ extern YYSTYPE cool_yylval;
 %x function_body
 
 %x function_body_openingbrace
+
+%x expr
 
 MULTI_LINE_COMMENT_START "(*"
 MULTI_LINE_COMMENT_END "*)"
@@ -170,7 +174,6 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 }
 <class_type>\{ {
   BEGIN(class_feature);
-  printf("inside of class\n");
   return '{';
 }
   
@@ -190,7 +193,6 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <class_signature>\n {curr_lineno++;}
 <class_signature>\{ {
   BEGIN(class_feature);
-  printf("inside of class\n");
   return '{';
 }
 <class_signature>. {RETURN_ERROR(0);}
@@ -230,6 +232,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   BEGIN(feature_id_colon_type);
   return TYPEID;
 }
+<feature_id_colon>\; {BEGIN(class_feature); return ';';}
 <feature_id_colon>[A-Z][^a-zA-Z_0-9]* {
   RETURN_ERROR(1);
 }
@@ -238,14 +241,18 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <feature_id_colon_type>[\t ]* {}
 <feature_id_colon_type>\n {curr_lineno++;}
 <feature_id_colon_type>\<- {
-  BEGIN(feature_id_colon_type_assign);
+  yy_push_state(feature_id_colon_type_assign);
+  yy_push_state(expr);
   return ASSIGN;
 }
 <feature_id_colon_type>\; {BEGIN(class_feature); return ';';}
   
-  /* feature_id_colon_type_assign - expression */
-<feature_id_colon_type_assign>. {
-  BEGIN(INITIAL); // stub for now, will complete expressions later
+  /* feature_id_colon_type_assign (searching for semicolon to end class feature) */
+<feature_id_colon_type_assign>[\t ]* {}
+<feature_id_colon_type_assign>\n {curr_lineno++;}
+<feature_id_colon_type_assign>\; {
+  return ';';
+  BEGIN(class_feature);
 }
 
   /* feature_id_openingparen - formal parameters */
@@ -325,7 +332,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 
 <function_body_openingbrace>[\t ]* {}
 <function_body_openingbrace>\n {curr_lineno++;}
-<function_body_openingbrace>\} {BEGIN(class_feature_needing_semicolon); return '}';}
+<function_body_openingbrace>\} {BEGIN(); return '}';} // needs to begin at the right context
 
 (?i:else) {return ELSE;}
 (?i:fi) {return FI;}

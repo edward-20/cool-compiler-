@@ -50,10 +50,11 @@ extern YYSTYPE cool_yylval;
   return ERROR; 
 
 #define LOOKUP_AND_ADD_SYMBOL \
-  if (elem = idtable.lookup_string(yytext) != NULL) {\
+  Symbol elem;\
+  if ((elem = idtable.lookup_string(yytext)) != NULL) {\
     cool_yylval.symbol = elem;\
   } else {\
-    cool_yylval.symbol = idtable.add_string(yytext);\ 
+    cool_yylval.symbol = idtable.add_string(yytext);\
   }
 
 %}
@@ -100,7 +101,6 @@ SINGLE_LINE_COMMENT_START "--"
 STRING_START "\""
 
 TYPE_IDENTIFIER [A-Z]([:alnum]|_)*
-TYPE_IDENTIFIER [A-Z]([:alnum]|_)*
 OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 
 %option noyywrap
@@ -124,6 +124,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 %%
 [\t ]* {};
 \n {curr_lineno++;}
+<<EOF>> {yyterminate();}
   
   /* comments */
 {MULTI_LINE_COMMENT_START} {BEGIN(multi_line_comment);}
@@ -225,7 +226,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <feature_id_colon>TYPE_IDENTIFIER {
   // check if the type indeed exists
   LOOKUP_AND_ADD_SYMBOL;
-  BEGIN(feature_id_colon_type)
+  BEGIN(feature_id_colon_type);
   return TYPEID;
 }
 <feature_id_colon>[A-Z][^a-zA-Z_0-9]* {
@@ -235,9 +236,9 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 
   /* feature_id_colon_type - assign */
 <feature_id_colon_type>[\t ]* {}
-<feature_id_colon_type>\n {curr_lineno++}
+<feature_id_colon_type>\n {curr_lineno++;}
 <feature_id_colon_type>\<- {
-  BEGIN(feature_id_colon_type_assign)
+  BEGIN(feature_id_colon_type_assign);
   return ASSIGN;
 }
 <feature_id_colon_type>[^\<] {

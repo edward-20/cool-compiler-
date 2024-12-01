@@ -75,6 +75,7 @@ extern YYSTYPE cool_yylval;
 %x class_signature
 /* this condition means we've had * features defined before in the class definition */
 %x class_feature
+%x class_feature_needing_semicolon
 
 %x feature_id
 %x feature_id_colon
@@ -85,6 +86,12 @@ extern YYSTYPE cool_yylval;
 %x formal_id
 %x formal_id_colon
 %x formal_needing_comma
+%x feature_id_formal_parameters
+%x feature_id_formal_parameters_colon
+
+%x function_body
+
+%x function_body_openingbrace
 
 MULTI_LINE_COMMENT_START "(*"
 MULTI_LINE_COMMENT_END "*)"
@@ -245,6 +252,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <feature_id_openingparen>[\t ]* {}
 <feature_id_openingparen>\n {curr_lineno++;}
 <feature_id_openingparen>\) {
+  BEGIN(feature_id_formal_parameters);
   return ')';
 }
 <feature_id_openingparen>{OBJECT_IDENTIFIER} {
@@ -283,6 +291,41 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   BEGIN(feature_id_openingparen);
   return ',';
 }
+
+<feature_id_formal_parameters>[\t ]* {}
+<feature_id_formal_parameters>\n {curr_lineno++;}
+<feature_id_formal_parameters>: {
+  BEGIN(feature_id_formal_parameters_colon);
+  return ':';
+}
+<feature_id_formal_parameters>. {
+  RETURN_ERROR(0);
+}
+
+<feature_id_formal_parameters_colon>[\t ]* {}
+<feature_id_formal_parameters_colon>\n {curr_lineno++;}
+<feature_id_formal_parameters_colon>{TYPE_IDENTIFIER} {
+  cool_yylval.symbol = idtable.add_string(yytext); // should be looking up
+  BEGIN(function_body);
+  return TYPEID;
+}
+<feature_id_formal_parameters_colon>[A-Z][^A-Za-z0-9_]* {
+  RETURN_ERROR(1);
+}
+<feature_id_formal_parameters_colon>[^A-Z] {
+  RETURN_ERROR(0);
+}
+
+<function_body>[\t ]* {}
+<function_body>\n {curr_lineno++;}
+<function_body>\{ {
+  BEGIN(function_body_openingbrace);
+  return '{';
+}
+
+<function_body_openingbrace>[\t ]* {}
+<function_body_openingbrace>\n {curr_lineno++;}
+<function_body_openingbrace>\} {BEGIN(class_feature_needing_semicolon); return '}';}
 
 (?i:else) {return ELSE;}
 (?i:fi) {return FI;}

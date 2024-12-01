@@ -45,8 +45,8 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
-#define RETURN_ERROR(A) \
-  cool_yylval.error_msg = yytext + A; \
+#define RETURN_ERROR \
+  cool_yylval.error_msg = yytext; \
   return ERROR; 
 
 #define LOOKUP_AND_ADD_SYMBOL \
@@ -154,13 +154,13 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   /* class - type identifier */
 <class>[ \t]* {}
 <class>\n {curr_lineno++;}
-<class>[^A-Z] {RETURN_ERROR(0);}
+<class>[^A-Z] {RETURN_ERROR;}
 <class>TYPE_IDENTIFIER {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(class_type);
   return TYPEID;
 }
-<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
+<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR;}
 
   /* type identifier - [ inherits | { ] */
 <class_type>[ \t]* {}
@@ -177,13 +177,13 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   /* inherits - type identifier */
 <class_type_inherits>[\t ]* {}
 <class_type_inherits>\n {curr_lineno++;}
-<class_type_inherits>[^A-Z] {RETURN_ERROR(0);}
+<class_type_inherits>[^A-Z] {RETURN_ERROR;}
 <class_type_inherits>TYPE_IDENTIFIER {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(class_signature);
   return TYPEID;
 }
-<class_type_inherits>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
+<class_type_inherits>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR;}
 
   /* class signature - open brace */
 <class_signature>[\t ]* {}
@@ -192,17 +192,17 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   BEGIN(class_feature);
   return '{';
 }
-<class_signature>. {RETURN_ERROR(0);}
+<class_signature>. {RETURN_ERROR;}
 
   /* class open brace - [ feature; ]* */
 <class_feature>[\t ]* {}
 <class_feature>\n {curr_lineno++;}
-<class_feature>[^A-Z] {RETURN_ERROR(0);}
+<class_feature>[^A-Z] {RETURN_ERROR;}
 <class_feature>OBJECT_IDENTIFIER {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(feature_id);
 }
-<class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
+<class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR;}
 
   /* feature identifier - ( | : */
 <feature_id>[\t ]* {}

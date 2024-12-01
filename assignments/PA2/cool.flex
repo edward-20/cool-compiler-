@@ -45,17 +45,9 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
-#define RETURN_ERROR \
-  cool_yylval.error_msg = yytext;\
+#define RETURN_ERROR(A) \
+  cool_yylval.error_msg = yytext + A;\
   return ERROR
-
-#define LOOKUP_AND_ADD_SYMBOL \
-  Symbol elem;\
-  if ((elem = idtable.lookup_string(yytext)) != NULL) {\
-    cool_yylval.symbol = elem;\
-  } else {\
-    cool_yylval.symbol = idtable.add_string(yytext);\
-  }
 
 %}
 
@@ -74,7 +66,8 @@ extern YYSTYPE cool_yylval;
  * Define names for regular expressions here. And also start conditions
  */
 
-%x multi_line_comment one_line_comment 
+%x multi_line_comment
+%x one_line_comment 
 %x string
 %x class
 %x class_type
@@ -124,20 +117,18 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 %%
 [\t ]* {};
 \n {curr_lineno++;}
-<<EOF>> {yyterminate();}
+<INITIAL><<EOF>> {yyterminate();}
   
   /* comments */
 {MULTI_LINE_COMMENT_START} {BEGIN(multi_line_comment);}
 <multi_line_comment>{MULTI_LINE_COMMENT_END} {BEGIN(INITIAL);}
 <multi_line_comment>. {}
 <multi_line_comment>\n {curr_lineno++;}
-  /*
-  <multi_line_comment><<EOF>> {
-    cool_yylval.error_msg = "EOF in comment";
-    BEGIN(INITIAL);
-    return ERROR;
-  }
-  */
+<multi_line_comment><<EOF>> {
+  cool_yylval.error_msg = "EOF in comment";
+  BEGIN(INITIAL);
+  return ERROR;
+}
 
 {SINGLE_LINE_COMMENT_START} {BEGIN(one_line_comment);}
 <one_line_comment>\n {curr_lineno++; BEGIN(INITIAL);}
@@ -150,15 +141,15 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 }
 
   /* class */
-(?i:class) {BEGIN(class); printf("now in class context"); return CLASS;}
+(?i:class) {BEGIN(class); return CLASS;}
 
   /* class - type identifier */
 <class>[ \t]* {}
 <class>\n {curr_lineno++;}
-<class>[^A-Z] { RETURN_ERROR;}
-<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR;}
+<class>[^A-Z] { RETURN_ERROR(0);}
+<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 <class>{TYPE_IDENTIFIER} {
-  LOOKUP_AND_ADD_SYMBOL;
+  cool_yylval.symbol = idtable.add_string(yytext);
   BEGIN(class_type);
   return TYPEID;
 }
@@ -178,13 +169,13 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   /* inherits - type identifier */
 <class_type_inherits>[\t ]* {}
 <class_type_inherits>\n {curr_lineno++;}
-<class_type_inherits>[^A-Z] {RETURN_ERROR;}
+<class_type_inherits>[^A-Z] {RETURN_ERROR(0);}
 <class_type_inherits>{TYPE_IDENTIFIER} {
-  LOOKUP_AND_ADD_SYMBOL;
+  cool_yylval.symbol = idtable.lookup_string(yytext);
   BEGIN(class_signature);
   return TYPEID;
 }
-<class_type_inherits>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR;}
+<class_type_inherits>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 
   /* class signature - open brace */
 <class_signature>[\t ]* {}
@@ -193,17 +184,17 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   BEGIN(class_feature);
   return '{';
 }
-<class_signature>. {RETURN_ERROR;}
+<class_signature>. {RETURN_ERROR(0);}
 
   /* class open brace - [ feature; ]* */
 <class_feature>[\t ]* {}
 <class_feature>\n {curr_lineno++;}
-<class_feature>[^A-Z] {RETURN_ERROR;}
+<class_feature>[^A-Z] {RETURN_ERROR(0);}
 <class_feature>{OBJECT_IDENTIFIER} {
-  LOOKUP_AND_ADD_SYMBOL;
+  cool_yylval.symbol = idtable.add_string(yytext);
   BEGIN(feature_id);
 }
-<class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR;}
+<class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 
   /* feature identifier - ( | : */
 <feature_id>[\t ]* {}
@@ -221,16 +212,16 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <feature_id_colon>[\t ]* {}
 <feature_id_colon>\n {curr_lineno++;}
 <feature_id_colon>[^A-Z] {
-  RETURN_ERROR;
+  RETURN_ERROR(0);
 }
 <feature_id_colon>{TYPE_IDENTIFIER} {
   // check if the type indeed exists
-  LOOKUP_AND_ADD_SYMBOL;
+  cool_yylval.symbol = idtable.lookup_string(yytext);
   BEGIN(feature_id_colon_type);
   return TYPEID;
 }
 <feature_id_colon>[A-Z][^a-zA-Z_0-9]* {
-  RETURN_ERROR;
+  RETURN_ERROR(1);
 }
 
   /* feature_id_colon_type - assign */
@@ -241,8 +232,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   return ASSIGN;
 }
 <feature_id_colon_type>[^\<] {
-  cool_yylval.error_msg = yytext;
-  return ERROR;
+  RETURN_ERROR(0);
 }
 
   /* feature_id_colon_type_assign - expression */
@@ -257,13 +247,12 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   return ')';
 }
 <feature_id_openingparen>{OBJECT_IDENTIFIER} {
-  LOOKUP_AND_ADD_SYMBOL;
+  cool_yylval.symbol = idtable.add_string(yytext);
   BEGIN(formal_id);
   return OBJECTID;
 }
 <feature_id_openingparen>[a-z][^a-zA-Z_0-9]* {
-  cool_yylval.error_msg = yytext + 1;  
-  return ERROR;
+  RETURN_ERROR(1);
 }
 
   /* formal_id - : */
@@ -274,15 +263,14 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   return ':';
 }
 <formal_id>. {
-  cool_yylval.error_msg = yytext;
-  return ERROR;
+  RETURN_ERROR(1);
 }
 
   /* formal_id_colon - type identifier */
 <formal_id_colon>[\t ]* {}
 <formal_id_colon>\n {curr_lineno++;}
 <formal_id_colon>{TYPE_IDENTIFIER} {
-  LOOKUP_AND_ADD_SYMBOL;
+  cool_yylval.symbol = idtable.lookup_string(yytext);
   BEGIN(formal_needing_comma);
   return TYPEID;
 }
@@ -379,15 +367,13 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
 }
 
   /* EOF in string */
-  /*
-  <string><<EOF>> {
-    if (string_error_encountered == 0) {
-      cool_yylval.error_msg = "String contains EOF character";
-    }
-    BEGIN(INITIAL);
-    return ERROR; 
+<string><<EOF>> {
+  if (string_error_encountered == 0) {
+    cool_yylval.error_msg = "String contains EOF character";
   }
-  */
+  BEGIN(INITIAL);
+  return ERROR; 
+}
 
   /* unescaped character */
 <string>. {

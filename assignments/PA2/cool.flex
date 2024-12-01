@@ -163,6 +163,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 }
 <class_type>\{ {
   BEGIN(class_feature);
+  printf("inside of class\n");
   return '{';
 }
   
@@ -171,7 +172,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <class_type_inherits>\n {curr_lineno++;}
 <class_type_inherits>[^A-Z] {RETURN_ERROR(0);}
 <class_type_inherits>{TYPE_IDENTIFIER} {
-  cool_yylval.symbol = idtable.lookup_string(yytext);
+  cool_yylval.symbol = idtable.add_string(yytext); // should be looking up
   BEGIN(class_signature);
   return TYPEID;
 }
@@ -182,6 +183,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <class_signature>\n {curr_lineno++;}
 <class_signature>\{ {
   BEGIN(class_feature);
+  printf("inside of class\n");
   return '{';
 }
 <class_signature>. {RETURN_ERROR(0);}
@@ -193,6 +195,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <class_feature>{OBJECT_IDENTIFIER} {
   cool_yylval.symbol = idtable.add_string(yytext);
   BEGIN(feature_id);
+  return OBJECTID;
 }
 <class_feature>[a-z][^a-zA-Z_0-9]* {RETURN_ERROR(1);}
 
@@ -216,7 +219,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 }
 <feature_id_colon>{TYPE_IDENTIFIER} {
   // check if the type indeed exists
-  cool_yylval.symbol = idtable.lookup_string(yytext);
+  cool_yylval.symbol = idtable.add_string(yytext); // should be looking up
   BEGIN(feature_id_colon_type);
   return TYPEID;
 }
@@ -231,10 +234,8 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   BEGIN(feature_id_colon_type_assign);
   return ASSIGN;
 }
-<feature_id_colon_type>[^\<] {
-  RETURN_ERROR(0);
-}
-
+<feature_id_colon_type>\; {BEGIN(class_feature); return ';';}
+  
   /* feature_id_colon_type_assign - expression */
 <feature_id_colon_type_assign>. {
   BEGIN(INITIAL); // stub for now, will complete expressions later
@@ -270,7 +271,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <formal_id_colon>[\t ]* {}
 <formal_id_colon>\n {curr_lineno++;}
 <formal_id_colon>{TYPE_IDENTIFIER} {
-  cool_yylval.symbol = idtable.lookup_string(yytext);
+  cool_yylval.symbol = idtable.add_string(yytext); // should be looking up
   BEGIN(formal_needing_comma);
   return TYPEID;
 }

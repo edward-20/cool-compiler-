@@ -79,7 +79,7 @@ extern YYSTYPE cool_yylval;
 %x class_type
 %x class_type_inherits
 %x class_signature
-// this condition means we've had * features defined before in the class definition 
+/* this condition means we've had * features defined before in the class definition */
 %x class_feature
 
 %x feature_id
@@ -133,6 +133,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   /* EOF in comment */
 <multi_line_comment><<EOF>> {
   cool_yylval.error_msg = "EOF in comment";
+  BEGIN(INITIAL);
   return ERROR;
 }
 
@@ -163,7 +164,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   /* type identifier - [ inherits | { ] */
 <class_type>[ \t]* {}
 <class_type>\n {curr_lineno++;}
-<class_type>inherits {
+<class_type>(?i:inherits) {
   BEGIN(class_type_inherits);
   return INHERITS;  
 }
@@ -293,7 +294,6 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   BEGIN(feature_id_openingparen);
   return ',';
 }
-
 
 (?i:else) {return ELSE;}
 (?i:fi) {return FI;}

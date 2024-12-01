@@ -332,7 +332,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 
 <function_body_openingbrace>[\t ]* {}
 <function_body_openingbrace>\n {curr_lineno++;}
-<function_body_openingbrace>\} {BEGIN(); return '}';} // needs to begin at the right context
+<function_body_openingbrace>\} {BEGIN(class_feature_needing_semicolon); return '}';}
 
 (?i:else) {return ELSE;}
 (?i:fi) {return FI;}

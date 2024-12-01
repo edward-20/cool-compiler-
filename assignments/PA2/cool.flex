@@ -46,8 +46,8 @@ extern YYSTYPE cool_yylval;
  */
 
 #define RETURN_ERROR \
-  cool_yylval.error_msg = yytext; \
-  return ERROR; 
+  cool_yylval.error_msg = yytext;\
+  return ERROR
 
 #define LOOKUP_AND_ADD_SYMBOL \
   Symbol elem;\
@@ -100,8 +100,8 @@ SINGLE_LINE_COMMENT_START "--"
 
 STRING_START "\""
 
-TYPE_IDENTIFIER [A-Z]([:alnum]|_)*
-OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
+TYPE_IDENTIFIER [A-Z][a-zA-Z0-9_]*
+OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 
 %option noyywrap
 
@@ -131,12 +131,13 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <multi_line_comment>{MULTI_LINE_COMMENT_END} {BEGIN(INITIAL);}
 <multi_line_comment>. {}
 <multi_line_comment>\n {curr_lineno++;}
-  /* EOF in comment */
-<multi_line_comment><<EOF>> {
-  cool_yylval.error_msg = "EOF in comment";
-  BEGIN(INITIAL);
-  return ERROR;
-}
+  /*
+  <multi_line_comment><<EOF>> {
+    cool_yylval.error_msg = "EOF in comment";
+    BEGIN(INITIAL);
+    return ERROR;
+  }
+  */
 
 {SINGLE_LINE_COMMENT_START} {BEGIN(one_line_comment);}
 <one_line_comment>\n {curr_lineno++; BEGIN(INITIAL);}
@@ -149,18 +150,18 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 }
 
   /* class */
-(?i:class) {BEGIN(class); return CLASS;}
+(?i:class) {BEGIN(class); printf("now in class context"); return CLASS;}
 
   /* class - type identifier */
 <class>[ \t]* {}
 <class>\n {curr_lineno++;}
-<class>[^A-Z] {RETURN_ERROR;}
-<class>TYPE_IDENTIFIER {
+<class>[^A-Z] { RETURN_ERROR;}
+<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR;}
+<class>{TYPE_IDENTIFIER} {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(class_type);
   return TYPEID;
 }
-<class>[A-Z][^a-zA-Z_0-9]* {RETURN_ERROR;}
 
   /* type identifier - [ inherits | { ] */
 <class_type>[ \t]* {}
@@ -178,7 +179,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <class_type_inherits>[\t ]* {}
 <class_type_inherits>\n {curr_lineno++;}
 <class_type_inherits>[^A-Z] {RETURN_ERROR;}
-<class_type_inherits>TYPE_IDENTIFIER {
+<class_type_inherits>{TYPE_IDENTIFIER} {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(class_signature);
   return TYPEID;
@@ -198,7 +199,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <class_feature>[\t ]* {}
 <class_feature>\n {curr_lineno++;}
 <class_feature>[^A-Z] {RETURN_ERROR;}
-<class_feature>OBJECT_IDENTIFIER {
+<class_feature>{OBJECT_IDENTIFIER} {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(feature_id);
 }
@@ -218,20 +219,18 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 
   /* feature_id_colon - type annotation */
 <feature_id_colon>[\t ]* {}
-<feature_id>\n {curr_lineno++;}
-<feature_id>[^A-Z] {
-  cool_yylval.error_msg = yytext;
-  return ERROR;
+<feature_id_colon>\n {curr_lineno++;}
+<feature_id_colon>[^A-Z] {
+  RETURN_ERROR;
 }
-<feature_id_colon>TYPE_IDENTIFIER {
+<feature_id_colon>{TYPE_IDENTIFIER} {
   // check if the type indeed exists
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(feature_id_colon_type);
   return TYPEID;
 }
 <feature_id_colon>[A-Z][^a-zA-Z_0-9]* {
-  cool_yylval.error_msg = yytext + 1;
-  return ERROR;
+  RETURN_ERROR;
 }
 
   /* feature_id_colon_type - assign */
@@ -257,7 +256,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
 <feature_id_openingparen>\) {
   return ')';
 }
-<feature_id_openingparen>OBJECT_IDENTIFIER {
+<feature_id_openingparen>{OBJECT_IDENTIFIER} {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(formal_id);
   return OBJECTID;
@@ -282,7 +281,7 @@ OBJECT_IDENTIFIER [a-z]([:alnum]|_)*
   /* formal_id_colon - type identifier */
 <formal_id_colon>[\t ]* {}
 <formal_id_colon>\n {curr_lineno++;}
-<formal_id_colon>TYPE_IDENTIFIER {
+<formal_id_colon>{TYPE_IDENTIFIER} {
   LOOKUP_AND_ADD_SYMBOL;
   BEGIN(formal_needing_comma);
   return TYPEID;
@@ -380,13 +379,15 @@ false {cool_yylval.boolean = 0; return BOOL_CONST;}
 }
 
   /* EOF in string */
-<string><<EOF>> {
-  if (string_error_encountered == 0) {
-    cool_yylval.error_msg = "String contains EOF character";
+  /*
+  <string><<EOF>> {
+    if (string_error_encountered == 0) {
+      cool_yylval.error_msg = "String contains EOF character";
+    }
+    BEGIN(INITIAL);
+    return ERROR; 
   }
-  BEGIN(INITIAL);
-  return ERROR; 
-}
+  */
 
   /* unescaped character */
 <string>. {

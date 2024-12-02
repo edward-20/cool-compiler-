@@ -85,6 +85,7 @@ extern YYSTYPE cool_yylval;
 
 
 %x feature_id_openingparen
+%x formal
 %x formal_id
 %x formal_id_colon
 %x formal_needing_comma
@@ -92,9 +93,7 @@ extern YYSTYPE cool_yylval;
 %x feature_id_formal_parameters_colon
 
 %x function_body
-
 %x function_body_openingbrace
-
 %x expr
 
 MULTI_LINE_COMMENT_START "(*"
@@ -200,7 +199,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   /* class open brace - [ feature; ]* */
 <class_feature>[\t ]* {}
 <class_feature>\n {curr_lineno++;}
-<class_feature>[^A-Z] {RETURN_ERROR(0);}
+<class_feature>[^a-z] {RETURN_ERROR(0);}
 <class_feature>{OBJECT_IDENTIFIER} {
   cool_yylval.symbol = idtable.add_string(yytext);
   BEGIN(feature_id);
@@ -279,7 +278,7 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   return ':';
 }
 <formal_id>. {
-  RETURN_ERROR(1);
+  RETURN_ERROR(0);
 }
 
   /* formal_id_colon - type identifier */
@@ -290,14 +289,32 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
   BEGIN(formal_needing_comma);
   return TYPEID;
 }
+<formal_id_colon>[A-Z][^A-Za-z0-9_]* {RETURN_ERROR(1);}
 
   /* formal_needing_comma */
 <formal_needing_comma>[\t ]* {}
 <formal_needing_comma>\n {curr_lineno++;}
 <formal_needing_comma>, {
-  BEGIN(feature_id_openingparen);
+  BEGIN(formal_with_comma);
   return ',';
 }
+<formal_needing_comma>\) {
+  BEGIN(feature_id_formal_parameters);
+  return ')';
+}
+<formal_needing_comma>. {
+  RETURN_ERROR(0);
+}
+
+  /* formal with comma - type identifier*/
+<formal_with_comma>[\t ]* {}
+<formal_with_comma>\n {curr_lineno++;}
+<formal_with_comma>{TYPE_IDENTIFIER} {
+  cool_yylval.symbol = idtable.add_string(yytext); // should be looking up
+  BEGIN(formal_with_comma);
+  return TYPEID;
+}
+<formal_with_comma>[^A-Z] {RETURN_ERROR(0);}
 
 <feature_id_formal_parameters>[\t ]* {}
 <feature_id_formal_parameters>\n {curr_lineno++;}
@@ -319,20 +336,28 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <feature_id_formal_parameters_colon>[A-Z][^A-Za-z0-9_]* {
   RETURN_ERROR(1);
 }
-<feature_id_formal_parameters_colon>[^A-Z] {
-  RETURN_ERROR(0);
-}
 
 <function_body>[\t ]* {}
 <function_body>\n {curr_lineno++;}
 <function_body>\{ {
-  BEGIN(function_body_openingbrace);
+  yy_push_state(function_body_openingbrace);
+  yy_push_state(expr);
   return '{';
 }
+<function_body>. {RETURN_ERROR(0);}
 
+  /* the only time this start condition occurs is when the expr in the function body has happened */
 <function_body_openingbrace>[\t ]* {}
 <function_body_openingbrace>\n {curr_lineno++;}
 <function_body_openingbrace>\} {BEGIN(class_feature_needing_semicolon); return '}';}
+<function_body_openingbrace>. {RETURN_ERROR(0);}
+
+<class_feature_needing_semicolon>[\t ]* {}
+<class_feature_needing_semicolon>\n {curr_lineno++;}
+<class_feature_needing_semicolon>\; {BEGIN(class_feature); return ';';}
+
+  /* handle expression */
+
 
 (?i:else) {return ELSE;}
 (?i:fi) {return FI;}

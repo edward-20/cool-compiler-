@@ -89,6 +89,7 @@ extern YYSTYPE cool_yylval;
 %x formal_id
 %x formal_id_colon
 %x formal_needing_comma
+%x formal_with_comma
 %x feature_id_formal_parameters
 %x feature_id_formal_parameters_colon
 
@@ -107,6 +108,7 @@ TYPE_IDENTIFIER [A-Z][a-zA-Z0-9_]*
 OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 
 %option noyywrap
+%option stack
 
 
 

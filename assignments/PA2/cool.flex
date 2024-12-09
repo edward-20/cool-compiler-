@@ -95,7 +95,17 @@ extern YYSTYPE cool_yylval;
 
 %x function_body
 %x function_body_openingbrace
+
 %x expr
+%x expr_assgn_id
+%x expr_assgn_id_assign
+
+%x expr_function_call
+%x expr_function_call_openingparen
+
+%x expr_if_clause_if
+%x expr_if_clause_if_expr_then
+%x expr_if_clause_if_expr_then_expr_else
 
 MULTI_LINE_COMMENT_START "(*"
 MULTI_LINE_COMMENT_END "*)"
@@ -359,6 +369,61 @@ OBJECT_IDENTIFIER [a-z][a-zA-Z0-9_]*
 <class_feature_needing_semicolon>\; {BEGIN(class_feature); return ';';}
 
   /* handle expression */
+<expr>[\t ]* {}
+<expr>\n {curr_lineno++;}
+
+  /* assignment expression */
+<expr>{OBJECT_IDENTIFIER}/([\t ]|\n)*\<- {
+  BEGIN(expr_assgn_id);
+  cool_yylval.symbol = idtable.add_string(yytext);
+  return OBJECTID;
+}
+<expr_assgn_id>[\t ]* {}
+<expr_assgn_id>\n {curr_lineno++;}
+<expr_assgn_id>\<- {yy_push_state(expr_assgn_id_assign); yy_push_state(expr); return ASSIGN;}
+<expr_assgn_id_assign>
+
+
+  /* function call expression */
+<expr>{OBJECT_IDENTIFIER}/([\t ]|\n)*\( {
+  BEGIN(expr_function_call);
+  cool_yylval.symbol = idtable.add_string(yytext);
+  return OBJECTID;
+}
+<expr_function_call>[\t ]* {}
+<expr_function_call>\n {curr_lineno++;}
+<expr_function_call>\( {
+  BEGIN(expr_function_call_openingparen)
+  return '(';
+}
+<expr_function_call_openingparen>
+
+  /* dispatch */
+<expr>{OBJECT_IDENTIFIER} {
+  yy_pop_state();
+  RETURN OBJECTID;
+}
+
+  /* if then else */
+<expr>(?i:if) {
+  BEGIN(expr_if_clause_if);
+  yy_push_state(expr);
+  return IF;
+}
+<expr_if_clause_if>[\t ]* {}
+<expr_if_clause_if>\n {curr_lineno++;}
+<expr_if_clase>(?:then) {
+  BEGIN(expr_if_clause_if_expr_then);
+  yy_push_state(expr);
+  return THEN;
+}
+<expr_if_clause_if_expr_then>(?i:else) {
+  BEGIN(expr_if_clause_if_expr_then_expr_else);
+  yy_push_state(expr);
+  return ELSE;
+}
+
+
 
 
 (?i:else) {return ELSE;}
